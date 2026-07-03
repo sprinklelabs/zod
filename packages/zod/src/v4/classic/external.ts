@@ -7,11 +7,15 @@ export * from "./compat.js";
 
 // zod-specified
 import { config } from "../core/index.js";
+import type { $ZodType } from "../core/index.js";
 import en from "../locales/en.js";
 config(en());
 
-export type { infer, output, input } from "../core/index.js";
 export type { JSONType } from "../core/util.js";
+
+export type infer<T extends $ZodType> = T["_zod"]["output"];
+export type input<T extends $ZodType> = T["_zod"]["input"];
+export type output<T extends $ZodType> = T["_zod"]["output"];
 export {
   globalRegistry,
   type GlobalMeta,

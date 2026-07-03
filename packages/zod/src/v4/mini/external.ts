@@ -3,8 +3,13 @@ export * from "./parse.js";
 export * from "./schemas.js";
 export * from "./checks.js";
 
-export type { infer, output, input } from "../core/index.js";
 export type { JSONType } from "../core/util.js";
+
+import type { $ZodType } from "../core/index.js";
+
+export type infer<T extends $ZodType> = T["_zod"]["output"];
+export type input<T extends $ZodType> = T["_zod"]["input"];
+export type output<T extends $ZodType> = T["_zod"]["output"];
 export {
   globalRegistry,
   registry,

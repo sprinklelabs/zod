@@ -991,3 +991,25 @@ test("type narrowing works with type property", () => {
     expect(arraySchema.def.element).toBeDefined();
   }
 });
+
+test("infer with generic mapped schema", () => {
+  enum SchemaTypes {
+    A = 0,
+    B = 1,
+  }
+
+  const SCHEMA_MAP = {
+    [SchemaTypes.A]: z.string(),
+    [SchemaTypes.B]: z.number(),
+  };
+
+  function parseDataForType<T extends SchemaTypes>(type: T, data: unknown): z.infer<(typeof SCHEMA_MAP)[T]> {
+    return SCHEMA_MAP[type].parse(data);
+  }
+
+  const a = parseDataForType(SchemaTypes.A, "foo");
+  expectTypeOf(a).toEqualTypeOf<string>();
+
+  const b = parseDataForType(SchemaTypes.B, 123);
+  expectTypeOf(b).toEqualTypeOf<number>();
+});
