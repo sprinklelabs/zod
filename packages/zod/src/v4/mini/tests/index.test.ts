@@ -95,6 +95,8 @@ test("z.iso.datetime", () => {
   expect(z.safeParse(a, d3).success).toEqual(false);
   expect(z.safeParse(a, d4).success).toEqual(false);
   expect(z.safeParse(a, d5).success).toEqual(false);
+  expect(z.safeParse(a, "+010000-01-01T00:00:00.000Z").success).toEqual(true);
+  expect(z.safeParse(a, "+10000-01-01T00:00:00.000Z").success).toEqual(false);
 
   const b = z.iso.datetime({ local: true });
   expect(z.safeParse(b, d1).success).toEqual(true);
@@ -125,6 +127,7 @@ test("z.iso.date", () => {
   const a = z.iso.date();
   expect(z.safeParse(a, d1).success).toEqual(true);
   expect(z.safeParse(a, d2).success).toEqual(false);
+  expect(z.safeParse(a, "+010000-01-01").success).toEqual(true);
 
   const b = z.string().check(z.iso.date());
   expect(z.safeParse(b, d1).success).toEqual(true);

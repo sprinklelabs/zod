@@ -92,8 +92,18 @@ export const httpProtocol: RegExp = /^https?$/;
 // E.164: leading digit must be 1-9; total digits (excluding '+') between 7-15
 export const e164: RegExp = /^\+[1-9]\d{6,14}$/;
 
-// const dateSource = `((\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-((0[13578]|1[02])-(0[1-9]|[12]\\d|3[01])|(0[469]|11)-(0[1-9]|[12]\\d|30)|(02)-(0[1-9]|1\\d|2[0-8])))`;
-const dateSource = `(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))`;
+const year4 = `\\d{4}`;
+// ISO 8601 expanded years: a `+`/`-` sign followed by exactly six digits.
+const year6 = `[+-]\\d{6}`;
+const year = `(?:${year4}|${year6})`;
+
+// Leap-year patterns for four-digit years.
+const leap4 = `(?:\\d\\d0[48]|\\d\\d[2468][048]|\\d\\d[13579][26]|[02468][048]00|[13579][26]00)`;
+// Leap-year patterns for signed six-digit expanded years.
+const leap6 = `(?:[+-]\\d{4}(?:0[48]|[2468][048]|[13579][26])|[+-]\\d{2}(?:[02468][048]|[13579][26])00)`;
+const leap = `(?:${leap4}|${leap6})`;
+
+const dateSource = `(?:${leap}-02-29|${year}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))`;
 export const date: RegExp = /*@__PURE__*/ new RegExp(`^${dateSource}$`);
 
 function timeSource(args: { precision?: number | null | undefined }) {

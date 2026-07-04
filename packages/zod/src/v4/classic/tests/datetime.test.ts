@@ -95,6 +95,37 @@ test("datetime parsing with offset and precision 4", () => {
   expect(() => datetimeOffset4Ms.parse("2020-10-14T17:42:29.124+00:00")).toThrow();
 });
 
+test("date and datetime parsing with expanded ISO 8601 years", () => {
+  const datetime = z.string().datetime();
+  datetime.parse("9999-12-31T00:00:00.000Z");
+  datetime.parse("+010000-01-01T00:00:00.000Z");
+  datetime.parse("-000001-01-01T00:00:00.000Z");
+  datetime.parse("+000104-02-29T00:00:00Z");
+  datetime.parse("+010000-02-29T00:00:00Z");
+
+  z.iso.datetime().parse("+010000-01-01T00:00:00.000Z");
+  z.iso.date().parse("+010000-01-01");
+
+  const datetimeLocal = z.string().datetime({ local: true });
+  datetimeLocal.parse("+010000-01-01T00:00:00");
+
+  const datetimeOffset = z.string().datetime({ offset: true });
+  datetimeOffset.parse("+010000-01-01T00:00:00+00:00");
+  datetimeOffset.parse("-000001-01-01T00:00:00-05:00");
+
+  const date = z.string().date();
+  date.parse("+010000-01-01");
+  date.parse("-000001-01-01");
+  date.parse("+000104-02-29");
+
+  expect(() => datetime.parse("+10000-01-01T00:00:00.000Z")).toThrow(); // five digits after sign
+  expect(() => datetime.parse("010000-01-01T00:00:00.000Z")).toThrow(); // missing sign
+  expect(() => datetime.parse("+000100-02-29T00:00:00Z")).toThrow(); // non-leap century
+  expect(() => datetime.parse("+010000-02-30T00:00:00Z")).toThrow();
+  expect(() => date.parse("+010000-02-30")).toThrow();
+  expect(() => date.parse("20000-01-01")).toThrow();
+});
+
 test("datetime offset normalization", () => {
   const a = z.iso.datetime({ offset: true });
 
