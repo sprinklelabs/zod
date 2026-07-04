@@ -593,6 +593,36 @@ test("looseRecord passes through non-matching keys", () => {
   expect(schema.parse({ other: "value" })).toEqual({ other: "value" });
 });
 
+test("looseRecord with closed key schema passes through unrecognized keys", () => {
+  const enumSchema = z.looseRecord(z.enum(["foo", "bar"]), z.any());
+  expect(enumSchema.parse({ foo: 123, bar: {}, baz: null })).toEqual({
+    foo: 123,
+    bar: {},
+    baz: null,
+  });
+
+  const literalSchema = z.looseRecord(z.literal(["foo", "bar"]), z.any());
+  expect(literalSchema.parse({ foo: 123, bar: {}, baz: null })).toEqual({
+    foo: 123,
+    bar: {},
+    baz: null,
+  });
+
+  // Recognized keys are still validated
+  const validated = z.looseRecord(z.enum(["foo", "bar"]), z.string());
+  expect(validated.parse({ foo: "ok", bar: "ok", baz: 123 })).toEqual({
+    foo: "ok",
+    bar: "ok",
+    baz: 123,
+  });
+  expect(() => validated.parse({ foo: 123 })).toThrow();
+});
+
+test("record with closed key schema still rejects unrecognized keys", () => {
+  const schema = z.record(z.enum(["foo", "bar"]), z.any());
+  expect(schema.safeParse({ foo: 123, bar: {}, baz: null }).success).toBe(false);
+});
+
 test("intersection of loose records", () => {
   const schema = z.intersection(
     z.object({ name: z.string() }).passthrough(),
