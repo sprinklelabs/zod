@@ -201,6 +201,12 @@ export const $ZodType: core.$constructor<$ZodType> = /*@__PURE__*/ core.$constru
     checks.unshift(inst as any);
   }
 
+  // Only overwrite checks mutate the parsed value during the check phase. In
+  // the backward direction, this is the only case where we need the second full
+  // parse pass; otherwise we can reuse the canary result and avoid re-running
+  // descendant transforms (codec encodes, pipe transforms, etc.).
+  const hasOverwrite = checks.some((ch) => ch._zod.def.check === "overwrite");
+
   for (const ch of checks) {
     for (const fn of ch._zod.onattach) {
       fn(inst);
@@ -270,9 +276,23 @@ export const $ZodType: core.$constructor<$ZodType> = /*@__PURE__*/ core.$constru
       const checkResult = runChecks(payload, checks, ctx);
       if (checkResult instanceof Promise) {
         if (ctx.async === false) throw new core.$ZodAsyncError();
-        return checkResult.then((checkResult) => inst._zod.parse(checkResult, ctx));
+        return checkResult.then((checkResult) => {
+          if (hasOverwrite) return inst._zod.parse(checkResult, ctx);
+
+          // No overwrite check mutated the value, so the canary already
+          // contains the final encoded/parsed value. Reuse it instead of
+          // re-running the entire subtree.
+          canary.issues.push(...checkResult.issues);
+          if (util.aborted(checkResult)) canary.aborted = true;
+          return canary;
+        });
       }
-      return inst._zod.parse(checkResult, ctx);
+
+      if (hasOverwrite) return inst._zod.parse(checkResult, ctx);
+
+      canary.issues.push(...checkResult.issues);
+      if (util.aborted(checkResult)) canary.aborted = true;
+      return canary;
     };
 
     inst._zod.run = (payload, ctx) => {
@@ -282,7 +302,8 @@ export const $ZodType: core.$constructor<$ZodType> = /*@__PURE__*/ core.$constru
       if (ctx.direction === "backward") {
         // run canary
         // initial pass (no checks)
-        const canary = inst._zod.parse({ value: payload.value, issues: [] }, { ...ctx, skipChecks: true });
+        const canaryCtx = hasOverwrite ? { ...ctx, skipChecks: true } : { ...ctx };
+        const canary = inst._zod.parse({ value: payload.value, issues: [] }, canaryCtx);
 
         if (canary instanceof Promise) {
           return canary.then((canary) => {

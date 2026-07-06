@@ -701,3 +701,124 @@ describe("context immutability", () => {
     expect("direction" in ctx).toBe(false);
   });
 });
+
+describe("encode canary reuse", () => {
+  test("refine parent does not re-run codec encode", () => {
+    let calls = 0;
+    const codec = z.codec(z.iso.datetime(), z.date(), {
+      decode: (iso) => new Date(iso),
+      encode: (date) => {
+        calls++;
+        return date.toISOString();
+      },
+    });
+
+    const schema = z.object({ at: codec }).refine(() => true);
+    expect(z.encode(schema, { at: new Date("2024-01-01T00:00:00.000Z") })).toEqual({
+      at: "2024-01-01T00:00:00.000Z",
+    });
+    expect(calls).toBe(1);
+  });
+
+  test("nested checked parents do not multiply codec encode calls", () => {
+    let calls = 0;
+    const codec = z.codec(z.iso.datetime(), z.date(), {
+      decode: (iso) => new Date(iso),
+      encode: (date) => {
+        calls++;
+        return date.toISOString();
+      },
+    });
+
+    const inner = z.object({ at: codec }).refine(() => true);
+    const schema = z.object({ nested: inner }).refine(() => true);
+    expect(z.encode(schema, { nested: { at: new Date("2024-01-01T00:00:00.000Z") } })).toEqual({
+      nested: { at: "2024-01-01T00:00:00.000Z" },
+    });
+    expect(calls).toBe(1);
+  });
+
+  test("array checks do not re-run codec encode per element", () => {
+    let calls = 0;
+    const codec = z.codec(z.iso.datetime(), z.date(), {
+      decode: (iso) => new Date(iso),
+      encode: (date) => {
+        calls++;
+        return date.toISOString();
+      },
+    });
+
+    const schema = z.object({ items: z.array(z.object({ at: codec })).min(1) });
+    expect(
+      z.encode(schema, {
+        items: [new Date("2024-01-01T00:00:00.000Z"), new Date("2024-02-01T00:00:00.000Z")].map((at) => ({ at })),
+      })
+    ).toEqual({
+      items: [{ at: "2024-01-01T00:00:00.000Z" }, { at: "2024-02-01T00:00:00.000Z" }],
+    });
+    expect(calls).toBe(2);
+  });
+
+  test("descendant check issues are not masked under a checked parent", () => {
+    const schema = z.object({ a: z.string().min(5), b: z.number() }).refine(() => true);
+    const result = z.safeEncode(schema, { a: "abc", b: "nan" } as any);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.map((i) => i.code)).toEqual(["too_small", "invalid_type"]);
+    }
+  });
+
+  test("async refine parent does not re-run async codec encode", async () => {
+    let calls = 0;
+    const codec = z.codec(z.iso.datetime(), z.date(), {
+      decode: (iso) => Promise.resolve(new Date(iso)),
+      encode: (date) => {
+        calls++;
+        return Promise.resolve(date.toISOString());
+      },
+    });
+
+    const schema = z.object({ at: codec }).refine(async () => true);
+    const result = await z.encodeAsync(schema, { at: new Date("2024-01-01T00:00:00.000Z") });
+    expect(result).toEqual({ at: "2024-01-01T00:00:00.000Z" });
+    expect(calls).toBe(1);
+  });
+
+  test("overwrite checks still transform and validate in backward direction", () => {
+    let calls = 0;
+    const codec = z.codec(z.string(), z.string(), {
+      decode: (s) => s,
+      encode: (s) => {
+        calls++;
+        return s.toUpperCase();
+      },
+    });
+
+    const schema = codec.overwrite((s) => s.trim()).refine((s) => s.length > 0);
+    expect(z.encode(schema, " hello ")).toBe("HELLO");
+    expect(calls).toBe(2);
+  });
+
+  test("check issues from a codec parent are preserved under a checked grandparent", () => {
+    let calls = 0;
+    const codec = z
+      .codec(z.iso.datetime(), z.date(), {
+        decode: (iso) => new Date(iso),
+        encode: (date) => {
+          calls++;
+          return date.toISOString();
+        },
+      })
+      .refine((date) => date.getFullYear() >= 2020, { message: "Too old" });
+
+    const inner = z.object({ at: codec }).refine(() => true);
+    const schema = z.object({ nested: inner }).refine(() => true);
+
+    const result = z.safeEncode(schema, { nested: { at: new Date("2019-01-01") } });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.map((i) => i.message)).toEqual(["Too old"]);
+    }
+    expect(calls).toBe(1);
+  });
+});
