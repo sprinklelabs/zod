@@ -2537,6 +2537,32 @@ test("basic registry", () => {
   `);
 });
 
+test("large registry", () => {
+  const myRegistry = z.registry<{ id: string }>();
+  const count = 100;
+  for (let i = 0; i < count; i++) {
+    const schema = z.object({
+      id: z.string(),
+      name: z.string(),
+      count: z.number(),
+      nested: z.object({ a: z.boolean() }),
+    });
+    myRegistry.add(schema, { id: `Type${i}` });
+  }
+
+  const result = z.toJSONSchema(myRegistry, {
+    uri: (id) => `https://example.com/${id}.json`,
+  });
+
+  expect(Object.keys(result.schemas).length).toBe(count);
+  for (let i = 0; i < count; i++) {
+    const schema = result.schemas[`Type${i}`];
+    expect(schema.$id).toBe(`https://example.com/Type${i}.json`);
+    expect(schema.type).toBe("object");
+    expect(schema.properties).toBeDefined();
+  }
+});
+
 test("_ref", () => {
   // const a = z.promise(z.string().describe("a"));
   const a = z.toJSONSchema(z.promise(z.string().describe("a")));

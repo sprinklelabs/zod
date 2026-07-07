@@ -241,3 +241,29 @@ test("toJSONSchema allows same schema with same id", () => {
   const result = z.toJSONSchema(wrapper, { metadata: reg });
   expect(result.$defs?.["shared-id"]).toBeDefined();
 });
+
+test("registry get caches inherited metadata", () => {
+  const reg = z.registry<{ label: string }>();
+  const base = z.string();
+  const child = base.clone();
+
+  reg.add(base, { label: "base" });
+  const first = reg.get(child);
+  const second = reg.get(child);
+  expect(first).toBe(second);
+  expect(first).toEqual({ label: "base" });
+
+  reg.add(child, { label: "child" });
+  const third = reg.get(child);
+  expect(third).not.toBe(first);
+  expect(third).toEqual({ label: "child" });
+
+  reg.remove(child);
+  expect(reg.get(child)).toEqual({ label: "base" });
+
+  reg.remove(base);
+  expect(reg.get(child)).toEqual(undefined);
+
+  reg.clear();
+  expect(reg.get(child)).toEqual(undefined);
+});

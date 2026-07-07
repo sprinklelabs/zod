@@ -95,6 +95,8 @@ export interface ToJSONSchemaContext {
   io: "input" | "output";
   counter: number;
   seen: Map<schemas.$ZodType, Seen>;
+  pendingRefs: Set<schemas.$ZodType>;
+  pendingRefsDirty: boolean;
   cycles: "ref" | "throw";
   reused: "ref" | "inline";
   external?:
@@ -130,6 +132,8 @@ export function initializeContext(params: JSONSchemaGeneratorParams): ToJSONSche
     io: params?.io ?? "output",
     counter: 0,
     seen: new Map(),
+    pendingRefs: new Set(),
+    pendingRefsDirty: true,
     cycles: params?.cycles ?? "ref",
     reused: params?.reused ?? "inline",
     external: params?.external ?? undefined,
@@ -161,6 +165,7 @@ export function process<T extends schemas.$ZodType>(
   // initialize
   const result: Seen = { schema: {}, count: 1, cycle: undefined, path: _params.path };
   ctx.seen.set(schema, result);
+  ctx.pendingRefsDirty = true;
 
   // custom method overrides default behavior
   const overrideSchema = schema._zod.toJSONSchema?.();
@@ -375,6 +380,7 @@ export function finalize<T extends schemas.$ZodType>(
 
     const ref = seen.ref;
     seen.ref = null; // prevent infinite recursion
+    ctx.pendingRefs.delete(zodSchema);
 
     if (ref) {
       flattenRef(ref);
@@ -446,8 +452,18 @@ export function finalize<T extends schemas.$ZodType>(
     });
   };
 
-  for (const entry of [...ctx.seen.entries()].reverse()) {
-    flattenRef(entry[0]);
+  if (ctx.pendingRefsDirty) {
+    ctx.pendingRefs.clear();
+    for (const [s, seen] of ctx.seen) {
+      if (seen.ref !== null) ctx.pendingRefs.add(s);
+    }
+    ctx.pendingRefsDirty = false;
+  }
+
+  const pending = [...ctx.pendingRefs];
+  ctx.pendingRefs.clear();
+  for (let i = pending.length - 1; i >= 0; i--) {
+    flattenRef(pending[i]);
   }
 
   const result: JSONSchema.BaseSchema = {};

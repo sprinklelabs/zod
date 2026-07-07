@@ -24,11 +24,13 @@ export type $replace<Meta, S extends $ZodType> = Meta extends $output
           : Meta;
 
 type MetadataType = object | undefined;
+const CACHE_EMPTY = Symbol("ZodRegistryCacheEmpty");
 export class $ZodRegistry<Meta extends MetadataType = MetadataType, Schema extends $ZodType = $ZodType> {
   _meta!: Meta;
   _schema!: Schema;
   _map: WeakMap<Schema, $replace<Meta, Schema>> = new WeakMap();
   _idmap: Map<string, Schema> = new Map();
+  _cache: WeakMap<Schema, $replace<Meta, Schema> | typeof CACHE_EMPTY> = new WeakMap();
 
   add<S extends Schema>(
     schema: S,
@@ -39,12 +41,14 @@ export class $ZodRegistry<Meta extends MetadataType = MetadataType, Schema exten
     if (meta && typeof meta === "object" && "id" in meta) {
       this._idmap.set(meta.id!, schema);
     }
+    this._cache = new WeakMap();
     return this as any;
   }
 
   clear(): this {
     this._map = new WeakMap();
     this._idmap = new Map();
+    this._cache = new WeakMap();
     return this;
   }
 
@@ -54,11 +58,17 @@ export class $ZodRegistry<Meta extends MetadataType = MetadataType, Schema exten
       this._idmap.delete(meta.id!);
     }
     this._map.delete(schema);
+    this._cache = new WeakMap();
     return this;
   }
 
   get<S extends Schema>(schema: S): $replace<Meta, S> | undefined {
     // return this._map.get(schema) as any;
+
+    const cached = this._cache.get(schema);
+    if (cached !== undefined) {
+      return cached === CACHE_EMPTY ? undefined : (cached as any);
+    }
 
     // inherit metadata
     const p = schema._zod.parent as Schema;
@@ -66,9 +76,13 @@ export class $ZodRegistry<Meta extends MetadataType = MetadataType, Schema exten
       const pm: any = { ...(this.get(p) ?? {}) };
       delete pm.id; // do not inherit id
       const f = { ...pm, ...this._map.get(schema) } as any;
-      return Object.keys(f).length ? f : undefined;
+      const result = Object.keys(f).length ? f : undefined;
+      this._cache.set(schema, result === undefined ? CACHE_EMPTY : result);
+      return result;
     }
-    return this._map.get(schema) as any;
+    const result = this._map.get(schema) as any;
+    this._cache.set(schema, result === undefined ? CACHE_EMPTY : result);
+    return result;
   }
 
   has(schema: Schema): boolean {
