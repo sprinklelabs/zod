@@ -415,12 +415,18 @@ test("codec type enforcement - correct encode/decode signatures", () => {
   });
 
   // These should compile without errors - correct types (async support)
-  expectTypeOf<(value: string, payload: z.core.ParsePayload<string>) => z.core.util.MaybeAsync<number>>(
+  expectTypeOf<(value: string, payload: z.core.ParsePayload<string>) => z.core.util.MaybeAsync<unknown>>(
     stringToNumberCodec.def.transform
   ).toBeFunction();
   expectTypeOf<(value: number, payload: z.core.ParsePayload<number>) => z.core.util.MaybeAsync<string>>(
     stringToNumberCodec.def.reverseTransform
   ).toBeFunction();
+
+  // decode may return unknown; the output schema is responsible for validation
+  z.codec(z.string(), z.number(), {
+    decode: (jsonString): unknown => JSON.parse(jsonString),
+    encode: (value) => String(value),
+  });
 
   // Test that decode parameter type is core.output<A> (string)
   const validDecode = (value: string) => Number(value);
@@ -442,9 +448,9 @@ test("codec type enforcement - correct encode/decode signatures", () => {
     encode: (value: never) => String(value), // Wrong: should be number, not unknown
   });
 
+  // decode may return any value; the output schema validates it
   z.codec(z.string(), z.number(), {
-    // @ts-expect-error - decode return type should be core.input<B>
-    decode: (value: string) => String(value), // Wrong: should return number, not string
+    decode: (value: string) => String(value),
     encode: (value: number) => String(value),
   });
 
@@ -469,7 +475,7 @@ test("codec type enforcement - complex types", () => {
   );
 
   // Verify correct types are inferred (async support)
-  expectTypeOf<(input: UserInput, payload: z.core.ParsePayload<UserInput>) => z.core.util.MaybeAsync<User>>(
+  expectTypeOf<(input: UserInput, payload: z.core.ParsePayload<UserInput>) => z.core.util.MaybeAsync<unknown>>(
     userCodec.def.transform
   ).toBeFunction();
   expectTypeOf<(user: User, payload: z.core.ParsePayload<User>) => z.core.util.MaybeAsync<UserInput>>(
