@@ -119,7 +119,7 @@ test("partial with mask", async () => {
 
   expect(masked.shape.name).toBeInstanceOf(z.ZodOptional);
   expect(masked.shape.age).toBeInstanceOf(z.ZodOptional);
-  expect(masked.shape.field).toBeInstanceOf(z.ZodOptional);
+  expect(masked.shape.field).toBeInstanceOf(z.ZodDefault);
   expect(masked.shape.country).toBeInstanceOf(z.ZodString);
 
   masked.parse({ country: "US" });
@@ -144,6 +144,75 @@ test("partial with mask -- ignore falsy values", async () => {
 
   masked.parse({ country: "US" });
   await masked.parseAsync({ country: "US" });
+});
+
+test("partial does not double-wrap optional fields", () => {
+  const object = z.object({
+    a: z.string().optional(),
+    b: z.number().nullish(),
+  });
+
+  const partialObject = object.partial();
+
+  expect(partialObject.shape.a).toBeInstanceOf(z.ZodOptional);
+  expect(partialObject.shape.a.unwrap()).toBeInstanceOf(z.ZodString);
+  expect(partialObject.shape.b.unwrap()).toBeInstanceOf(z.ZodNullable);
+
+  type partial = z.infer<typeof partialObject>;
+  expectTypeOf<partial>().toEqualTypeOf<{
+    a?: string | undefined;
+    b?: number | null | undefined;
+  }>();
+});
+
+test("partial preserves default field output type", () => {
+  const object = z.object({
+    foo: z.string().default("foo"),
+    bar: z.number().catch(0),
+  });
+
+  const partialObject = object.partial();
+
+  expect(partialObject.shape.foo).toBeInstanceOf(z.ZodDefault);
+  expect(partialObject.shape.bar).toBeInstanceOf(z.ZodCatch);
+
+  expectTypeOf<z.output<typeof partialObject>>().toEqualTypeOf<{
+    foo: string;
+    bar: number;
+  }>();
+  expectTypeOf<z.input<typeof partialObject>>().toEqualTypeOf<{
+    foo?: string | undefined;
+    bar?: number | undefined;
+  }>();
+});
+
+test("repeated partial does not nest optionals", () => {
+  const object = z.object({ a: z.string().optional() });
+  const once = object.partial();
+  const twice = once.partial();
+
+  expect(twice.shape.a.unwrap()).toBeInstanceOf(z.ZodString);
+  expect(twice.shape.a).toBeInstanceOf(z.ZodOptional);
+});
+
+test("partial().required() escape hatch still disables defaults", () => {
+  const object = z.object({
+    a: z.string().default("default"),
+    b: z.string().optional(),
+  });
+
+  const escaped = object.required().partial();
+
+  expect(escaped.shape.a).toBeInstanceOf(z.ZodOptional);
+  expect(escaped.shape.b).toBeInstanceOf(z.ZodOptional);
+
+  type escaped = z.infer<typeof escaped>;
+  expectTypeOf<escaped>().toEqualTypeOf<{
+    a?: string | undefined;
+    b?: string | undefined;
+  }>();
+
+  expect(escaped.parse({})).toEqual({});
 });
 
 test("catch/prefault/default", () => {

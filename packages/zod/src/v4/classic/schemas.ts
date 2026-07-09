@@ -1482,7 +1482,7 @@ export interface ZodObject<
 
   partial(): ZodObject<
     {
-      -readonly [k in keyof Shape]: ZodOptional<Shape[k]>;
+      -readonly [k in keyof Shape]: Shape[k] extends { _zod: { optin: "optional" } } ? Shape[k] : ZodOptional<Shape[k]>;
     },
     Config
   >;
@@ -1491,10 +1491,9 @@ export interface ZodObject<
   ): ZodObject<
     {
       -readonly [k in keyof Shape]: k extends keyof M
-        ? // Shape[k] extends OptionalInSchema
-          //   ? Shape[k]
-          //   :
-          ZodOptional<Shape[k]>
+        ? Shape[k] extends { _zod: { optin: "optional" } }
+          ? Shape[k]
+          : ZodOptional<Shape[k]>
         : Shape[k];
     },
     Config

@@ -740,7 +740,7 @@ export function partial(
             throw new Error(`Unrecognized key: "${key}"`);
           }
           if (!(mask as any)[key]) continue;
-          // if (oldShape[key]!._zod.optin === "optional") continue;
+          if (oldShape[key]!._zod.optin === "optional") continue;
           shape[key] = Class
             ? new Class({
                 type: "optional",
@@ -750,7 +750,7 @@ export function partial(
         }
       } else {
         for (const key in oldShape) {
-          // if (oldShape[key]!._zod.optin === "optional") continue;
+          if (oldShape[key]!._zod.optin === "optional") continue;
           shape[key] = Class
             ? new Class({
                 type: "optional",

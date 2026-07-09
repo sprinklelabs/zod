@@ -101,7 +101,7 @@ test("nested", () => {
     inner: "asdf",
   });
   type input = z.input<typeof outer>;
-  expectTypeOf<input>().toEqualTypeOf<{ inner: string }>();
+  expectTypeOf<input>().toEqualTypeOf<{ inner?: string | undefined }>();
   type out = z.output<typeof outer>;
 
   expectTypeOf<out>().toEqualTypeOf<{ inner: string }>();
