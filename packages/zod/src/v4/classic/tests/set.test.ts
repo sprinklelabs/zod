@@ -85,6 +85,40 @@ test("failing when set is bigger than max() ", () => {
   expect(result.error!.issues[0].code).toEqual("too_big");
 });
 
+test("failing when set does not match size() ", () => {
+  const tooSmall = justTwo.safeParse(new Set(["one"]));
+  expect(tooSmall.success).toEqual(false);
+  expect(tooSmall.error!.issues).toMatchInlineSnapshot(`
+    [
+      {
+        "code": "too_small",
+        "exact": true,
+        "inclusive": true,
+        "message": "Too small: expected set to have exactly 2 items",
+        "minimum": 2,
+        "origin": "set",
+        "path": [],
+      },
+    ]
+  `);
+
+  const tooBig = justTwo.safeParse(new Set(["one", "two", "three"]));
+  expect(tooBig.success).toEqual(false);
+  expect(tooBig.error!.issues).toMatchInlineSnapshot(`
+    [
+      {
+        "code": "too_big",
+        "exact": true,
+        "inclusive": true,
+        "maximum": 2,
+        "message": "Too big: expected set to have exactly 2 items",
+        "origin": "set",
+        "path": [],
+      },
+    ]
+  `);
+});
+
 test("doesn’t throw when an empty set is given", () => {
   const result = stringSet.safeParse(new Set([]));
   expect(result.success).toEqual(true);
