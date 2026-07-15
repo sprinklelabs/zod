@@ -236,6 +236,14 @@ const mockingLibraries: ZodResource[] = [
 
 const poweredByZodProjects: ZodResource[] = [
   {
+    name: "Sprinkle",
+    url: "https://sprinkle.network/",
+    description:
+      "Developer cloud platform — AI inference, smart wallets, compute, relay, storage and domains under one API key. API layer fully validated with Zod; SDK types generated via Orval.",
+    slug: "sprinklelabs/sprinkle-api",
+  },
+
+  {
     name: "zod-config",
     url: "https://github.com/alexmarqs/zod-config",
     description: "Load configurations across multiple sources with flexible adapters, ensuring type safety with Zod.",
